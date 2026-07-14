@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sellout Order Generator — Excel to Word</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#212E3C; --ink-soft:#41505F; --paper:#F1F2EE; --card:#FFFFFF;
+    --line:#D8DBD4; --stamp:#2F5FA3; --ok:#1E7A46; --err:#B4372E;
+    --mono:'IBM Plex Mono',monospace; --disp:'Archivo',sans-serif; --body:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+  a{color:var(--stamp)}
+
+  header{border-bottom:2px solid var(--ink);background:var(--card)}
+  .hwrap{max-width:1100px;margin:0 auto;padding:18px 24px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+  .brand small{display:block;font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.12em;color:var(--ink-soft);text-transform:none;margin-top:2px}
+  .runcode{font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+
+  main{max-width:1100px;margin:0 auto;padding:28px 24px 64px;display:grid;grid-template-columns:1fr 400px;gap:28px}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+
+  .steps{display:flex;flex-direction:column;gap:20px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px}
+  .panel h2{font-family:var(--disp);font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+  .panel .sub{font-size:13px;color:var(--ink-soft);margin-bottom:16px}
+
+  .drop{border:1.5px dashed var(--ink-soft);border-radius:6px;padding:34px 20px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;background:#FBFBF9}
+  .drop:hover,.drop.over{background:#F0F4FA;border-color:var(--stamp)}
+  .drop .big{font-family:var(--disp);font-weight:600;font-size:16px}
+  .drop .hint{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px}
+  .drop:focus-visible{outline:3px solid var(--stamp);outline-offset:2px}
+  input[type=file]{display:none}
+
+  .msg{display:none;margin-top:14px;padding:12px 14px;border-radius:5px;font-size:14px;font-weight:500}
+  .msg.ok{display:block;background:#E7F3EB;border:1px solid #BCDCC8;color:var(--ok)}
+  .msg.err{display:block;background:#FAE9E7;border:1px solid #ECC5C1;color:var(--err)}
+
+  .filelist{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  .filerow{border:1px solid var(--line);border-radius:5px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FBFBF9}
+  .filerow .fname{font-family:var(--mono);font-size:13px;font-weight:500;word-break:break-all;flex:1;min-width:180px}
+  .filerow .meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft)}
+  .badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;padding:3px 8px;border-radius:3px;font-weight:600}
+  .badge.ready{background:#E7F3EB;color:var(--ok)}
+  .badge.fail{background:#FAE9E7;color:var(--err)}
+  .rm{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:16px;line-height:1;padding:4px}
+  .rm:hover{color:var(--err)}
+
+  .btn{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.05em;text-transform:uppercase;
+       border:none;border-radius:5px;padding:13px 22px;cursor:pointer;transition:transform .05s,opacity .15s}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--ink);color:#fff;width:100%;margin-top:18px}
+  .btn.primary:hover{background:#31435A}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn.small{padding:8px 14px;font-size:12px;background:var(--stamp);color:#fff}
+  .btn.small:hover{background:#3D71BC}
+  .btn:focus-visible{outline:3px solid var(--stamp);outline-offset:2px}
+
+  details.hdrset{margin-top:4px}
+  details.hdrset summary{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);cursor:pointer;letter-spacing:.03em}
+  .hdrgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .hdrgrid label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:3px}
+  .hdrgrid input{width:100%;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-family:var(--mono);font-size:13px;background:#FBFBF9;color:var(--ink)}
+  .hdrgrid input:focus{outline:2px solid var(--stamp);outline-offset:1px}
+
+  /* --- Document preview: the signature element, styled like the actual report page --- */
+  .previewwrap{position:sticky;top:24px}
+  .docpage{position:relative;background:var(--card);border:1px solid var(--ink);border-radius:2px;padding:26px 24px 30px;
+           box-shadow:4px 4px 0 rgba(33,46,60,.12);font-family:'Times New Roman',serif;overflow:hidden}
+  .docpage h3{font-family:var(--disp);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:16px}
+  .docline{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:4px 0;border-bottom:1px dotted var(--line)}
+  .docline b{font-weight:700}
+  .docline span{font-family:var(--mono);font-size:12.5px}
+  .docpage .empty{color:var(--ink-soft);font-style:italic;font-size:13px;padding:18px 0}
+  .stamp{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-11deg);
+         border:3px solid var(--ok);color:var(--ok);border-radius:6px;padding:8px 18px;
+         font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.16em;text-transform:uppercase;
+         opacity:0;pointer-events:none;background:rgba(255,255,255,.75)}
+  .stamp.show{animation:stampin .35s cubic-bezier(.2,1.6,.4,1) forwards}
+  @keyframes stampin{from{opacity:0;transform:translate(-50%,-50%) rotate(-11deg) scale(1.7)}to{opacity:.92;transform:translate(-50%,-50%) rotate(-11deg) scale(1)}}
+  @media(prefers-reduced-motion:reduce){.stamp.show{animation:none;opacity:.92}}
+
+  footer{max-width:1100px;margin:0 auto;padding:0 24px 36px;font-family:var(--mono);font-size:11.5px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand">Sellout Order Generator
+      <small>SUPPORT SHEET (.xlsx) &rarr; Oracle-style order document (.doc)</small>
+    </div>
+    <div class="runcode" id="runcode">RUN &middot; —</div>
+  </div>
+</header>
+
+<main>
+  <section class="steps">
+
+    <div class="panel">
+      <h2>1 &middot; Upload Excel file</h2>
+      <p class="sub">Select the SELLOUT workbook. Required columns on the <b>SUPPORT SHEET</b>: DATE, CUST CODE, Dealer Name, PRODUCT CODE, MODEL, QTY.</p>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload Excel file">
+        <div class="big">Drop the Excel file here or click to browse</div>
+        <div class="hint">.xlsx &middot; multiple files allowed &middot; processed in your browser only</div>
+      </div>
+      <input type="file" id="fileinput" accept=".xlsx,.xls" multiple>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
+      <div class="filelist" id="filelist"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 &middot; Generate Word document</h2>
+      <p class="sub">One page per Date + Customer. Item quantities are aggregated per product code and reconciled against the Excel total before download.</p>
+
+      <details class="hdrset">
+        <summary>Report header values (Address / Currency / Terms / Reference)</summary>
+        <div class="hdrgrid">
+          <div><label for="h_city">City</label><input id="h_city" value="NAIROBI"></div>
+          <div><label for="h_country">Country</label><input id="h_country" value="KENYA"></div>
+          <div><label for="h_currency">Order currency</label><input id="h_currency" value="KSH"></div>
+          <div><label for="h_terms">Terms of payment</label><input id="h_terms" value="CR30D"></div>
+          <div><label for="h_txn">Transaction code</label><input id="h_txn" value="INV"></div>
+          <div><label for="h_ref">Reference</label><input id="h_ref" value="VISHAL"></div>
+          <div style="grid-column:1/-1"><label for="h_remarks">Remarks</label><input id="h_remarks" value="AS PER VISHAL"></div>
+        </div>
+      </details>
+
+      <button class="btn primary" id="genall" disabled>Generate Word document</button>
+    </div>
+
+  </section>
+
+  <aside class="previewwrap">
+    <div class="docpage" aria-label="Report preview">
+      <h3>Report preview</h3>
+      <div id="preview"><div class="empty">Upload an Excel file to see what will be generated.</div></div>
+      <div class="stamp" id="stamp">Uploaded</div>
+    </div>
+  </aside>
+</main>
+
+<footer>All processing happens locally in your browser — no data is sent to any server.</footer>
+
+<script src="generator.js"></script>
+<script>
+(function(){
+  'use strict';
+  var files = []; // {name, rows, pages, totalQty, dateFrom, dateTo, customers, error}
+  var $ = function(id){ return document.getElementById(id); };
+  var drop = $('drop'), input = $('fileinput'), msg = $('msg'),
+      list = $('filelist'), genall = $('genall'), preview = $('preview'), stamp = $('stamp');
+
+  $('runcode').textContent = 'RUN \u00B7 ' + new Date().toISOString().slice(0,10);
+
+  drop.addEventListener('click', function(){ input.click(); });
+  drop.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); input.click(); }});
+  ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function(e){ handleFiles(e.dataTransfer.files); });
+  input.addEventListener('change', function(){ handleFiles(input.files); input.value=''; });
+
+  function setMsg(kind, text){ msg.className = 'msg ' + kind; msg.textContent = text; }
+
+  function handleFiles(fileList){
+    var pending = Array.prototype.slice.call(fileList).filter(function(f){ return /\.xlsx?$/i.test(f.name); });
+    if (!pending.length) { setMsg('err','That is not an Excel file. Please upload a .xlsx file.'); return; }
+    var done = 0;
+    pending.forEach(function(f){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var entry = { name: f.name, error: null };
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:true });
+          var sheetName = wb.SheetNames.indexOf('SUPPORT SHEET') >= 0 ? 'SUPPORT SHEET' : wb.SheetNames[0];
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+          if (!rows.length) throw new Error('The sheet "' + sheetName + '" has no data rows.');
+          var missing = SelloutGen.REQUIRED.filter(function(c){ return !(c in rows[0]); });
+          if (missing.length) throw new Error('Missing columns: ' + missing.join(', '));
+          var groups = SelloutGen.buildGroups(rows);
+          if (!groups.length) throw new Error('No valid DATE / CUST CODE rows found.');
+          entry.rows = rows;
+          entry.pages = groups.length;
+          entry.totalQty = rows.reduce(function(s,r){ return s + (Number(r['QTY'])||0); }, 0);
+          entry.customers = Object.keys(groups.reduce(function(m,g){ m[g.cust]=1; return m; }, {})).length;
+          entry.dateFrom = groups[0].date; entry.dateTo = groups[groups.length-1].date;
+        } catch (err) { entry.error = err.message; }
+        files = files.filter(function(x){ return x.name !== entry.name; });
+        files.push(entry);
+        done++;
+        if (done === pending.length) refresh(true);
+      };
+      reader.readAsArrayBuffer(f);
+    });
+  }
+
+  function fmtD(d){ return SelloutGen.formatDate(d); }
+
+  function refresh(justUploaded){
+    // file list
+    list.innerHTML = '';
+    files.forEach(function(f, idx){
+      var row = document.createElement('div'); row.className = 'filerow';
+      var badge = f.error ? '<span class="badge fail">CHECK FILE</span>' : '<span class="badge ready">READY</span>';
+      var meta = f.error ? '<span class="meta" style="color:var(--err)">' + f.error + '</span>'
+                         : '<span class="meta">' + f.pages + ' pages \u00B7 ' + f.customers + ' customers \u00B7 qty ' + f.totalQty.toLocaleString() + '</span>';
+      row.innerHTML = '<span class="fname">' + f.name + '</span>' + meta + badge +
+        (f.error ? '' : '<button class="btn small" data-gen="' + idx + '">Download .doc</button>') +
+        '<button class="rm" title="Remove" data-rm="' + idx + '">\u00D7</button>';
+      list.appendChild(row);
+    });
+
+    var ok = files.filter(function(f){ return !f.error; });
+    genall.disabled = !ok.length;
+    genall.textContent = ok.length > 1 ? 'Generate Word documents (' + ok.length + ' files)' : 'Generate Word document';
+
+    // messages
+    if (justUploaded) {
+      var bad = files.filter(function(f){ return f.error; });
+      if (ok.length && !bad.length) setMsg('ok', 'Data was successfully uploaded. Click "Generate Word document" to create the report.');
+      else if (ok.length && bad.length) setMsg('ok', 'Data was successfully uploaded for ' + ok.length + ' file(s). ' + bad.length + ' file(s) need attention \u2014 see the list below.');
+      else setMsg('err', 'Upload failed \u2014 ' + bad[0].error);
+      stamp.classList.remove('show');
+      if (ok.length) { void stamp.offsetWidth; stamp.classList.add('show'); }
+    }
+
+    // preview panel
+    if (!ok.length) {
+      preview.innerHTML = '<div class="empty">Upload an Excel file to see what will be generated.</div>';
+      stamp.classList.remove('show');
+      return;
+    }
+    var totPages = ok.reduce(function(s,f){ return s+f.pages; },0),
+        totQty   = ok.reduce(function(s,f){ return s+f.totalQty; },0),
+        from = ok.reduce(function(m,f){ return !m || f.dateFrom < m ? f.dateFrom : m; }, null),
+        to   = ok.reduce(function(m,f){ return !m || f.dateTo   > m ? f.dateTo   : m; }, null);
+    preview.innerHTML =
+      line('Files ready', ok.length) +
+      line('Order pages', totPages) +
+      line('Period', fmtD(from) + ' \u2192 ' + fmtD(to)) +
+      line('Total quantity', totQty.toLocaleString() + ' PCS') +
+      line('Address', $('h_city').value + ', ' + $('h_country').value) +
+      line('Currency / Terms', $('h_currency').value + ' / ' + $('h_terms').value) +
+      line('Reference', $('h_ref').value);
+    function line(k,v){ return '<div class="docline"><b>' + k + '</b><span>' + v + '</span></div>'; }
+  }
+
+  ['h_city','h_country','h_currency','h_terms','h_txn','h_ref','h_remarks'].forEach(function(id){
+    $(id).addEventListener('input', function(){ refresh(false); });
+  });
+
+  list.addEventListener('click', function(e){
+    var g = e.target.getAttribute('data-gen'), r = e.target.getAttribute('data-rm');
+    if (g !== null && g !== undefined && g !== '') generateOne(files[+g]);
+    if (r !== null && r !== undefined && r !== '') { files.splice(+r,1); refresh(false); setMsg('ok','File removed.'); }
+  });
+
+  function header(){
+    return { city:$('h_city').value, country:$('h_country').value, currency:$('h_currency').value,
+             terms:$('h_terms').value, txnCode:$('h_txn').value, reference:$('h_ref').value, remarks:$('h_remarks').value };
+  }
+
+  function generateOne(f){
+    try {
+      var outName = f.name.replace(/\.xlsx?$/i, '') + '.doc';
+      var res = SelloutGen.generateDoc(f.rows, outName, header());
+      var bytes = new Uint8Array(res.rtf.length);
+      for (var i=0;i<res.rtf.length;i++) bytes[i] = res.rtf.charCodeAt(i) & 0xFF;
+      var blob = new Blob([bytes], { type:'application/msword' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = outName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+      setMsg('ok', outName + ' generated \u2014 ' + res.pages + ' pages, quantity ' + res.totalQty.toLocaleString() + ' (matches the Excel total).');
+    } catch (err) { setMsg('err', 'Could not generate ' + f.name + ' \u2014 ' + err.message); }
+  }
+
+  genall.addEventListener('click', function(){
+    files.filter(function(f){ return !f.error; }).forEach(function(f, i){
+      setTimeout(function(){ generateOne(f); }, i * 350); // stagger downloads
+    });
+  });
+})();
+</script>
+</body>
+</html>
